@@ -48,6 +48,66 @@ if uploaded_params:
         st.session_state[k] = v
     st.sidebar.success("Inputs loaded from file!")
 
+# --- Glossary + How-to + Diagram in Sidebar ---
+with st.sidebar.expander("📖 Glossary & How-to", expanded=False):
+    st.markdown("""
+    ## ⚡ Key Terms
+    - **DC Size (kW):** PV array capacity (DC side).
+    - **Base DC Size (kW):** Scaling reference from uploaded PV file.
+    - **Inverter Capacity (kW):** Max AC output rating.
+    - **Export / Import Limits (kW):** Grid constraints.
+    - **Battery Capacity (kWh):** Energy storage per unit.
+    - **Depth of Discharge (DoD %):** Fraction usable before empty.
+    - **SOC (State of Charge %):** Current stored energy.
+    - **C-rate:** Charge/discharge rate relative to capacity (1C = full in 1h).
+    - **Battery Efficiency (%):** Round-trip efficiency.
+
+    ## 🔄 Dispatch Logic (DC-Coupled)
+    1. PV → Load (via inverter)  
+    2. Battery discharge → Load  
+    3. Import from Grid  
+    4. PV surplus → Battery charge  
+    5. PV surplus → Export (limited by inverter & grid cap)  
+    6. Remaining → Excess (curtailed)
+
+    ## 🧾 Losses
+    - **Inverter Losses:** DC→AC conversion.
+    - **Battery Losses:** Charge/discharge inefficiencies.
+    - **Clipped Energy:** PV above inverter/DC limits.
+    - **Excess:** PV beyond export capacity.
+
+    ## 📊 Financial Model
+    - **Capex (£):** PV + Battery cost.
+    - **O&M Costs (%):** Annual % of capex.
+    - **Degradation (%/yr):** PV and battery aging.
+    - **Tariff Escalation:** Import/export price rise per year.
+    - **Outputs:** IRR, ROI, Payback, LCOE, Savings.
+
+    ## 📈 Outputs
+    - **Monthly Summary:** Load, PV, Battery, Import, Export.
+    - **Annual Metrics:** Renewable fraction, cycles, utilization, losses.
+    - **Charts:** Load profile, SOC, energy flows, batch results.
+    """)
+
+    # --- Add DC-Coupled Diagram (Plotly Sankey) ---
+    import plotly.graph_objects as go
+
+    labels = ["PV Array", "Battery", "DC Bus", "Inverter", "Load", "Grid Export"]
+    # Source → Target mapping
+    sources = [0, 0, 1, 2, 2, 3]   # PV→DC, PV→Battery, Batt→DC, DC→Inverter, DC→Battery, Inverter→Load
+    targets = [2, 1, 2, 3, 1, 4]   # flows
+    values  = [10, 5, 5, 12, 3, 10]  # example kWh (dummy numbers for visualization)
+
+    fig = go.Figure(go.Sankey(
+        arrangement="snap",
+        node=dict(label=labels, pad=20, thickness=20),
+        link=dict(source=sources, target=targets, value=values)
+    ))
+
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption("Simplified DC-Coupled Architecture: PV and Battery share the DC bus before the inverter.")
+
+
 # --- Upload Section ---
 st.header("1. Upload Input Data")
 col1, col2 = st.columns(2)
