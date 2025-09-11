@@ -91,7 +91,7 @@ if st.sidebar.button("📥 Save Inputs"):
         "dc_size": dc_size,
         "base_dc_size": base_dc_size,
         "inverter_capacity": inverter_capacity,
-        "inverter_eff": inverter_eff,
+        "inverter_eff": inverter_eff*100,
         "export_limit": export_limit,
         "import_limit": import_limit,
         "import_rate": import_rate,
@@ -100,19 +100,19 @@ if st.sidebar.button("📥 Save Inputs"):
         "cost_of_battery": cost_of_battery,
         "o_and_m_rate": o_and_m_rate,
         "apply_degradation": apply_degradation,
-        "degradation_rate": degradation_rate,
+        "degradation_rate": degradation_rate*100,
         "apply_battery_degradation": apply_battery_degardation,
-        "battery_degradation": battery_degradation,
-        "import_esc": import_esc,
-        "export_esc": export_esc,
-        "inflation": inflation,
+        "battery_degradation": battery_degradation*100,
+        "import_esc": import_esc*100,
+        "export_esc": export_esc*100,
+        "inflation": inflation*100,
         "battery_qty": battery_qty,
         "battery_capacity": battery_capacity,
         "dod": dod,
         "min_soc": min_soc,
         "initial_soc": initial_soc,
         "c_rate": c_rate,
-        "battery_eff": battery_eff
+        "battery_eff": battery_eff*100
     }
 
     json_string = json.dumps(input_params, indent=2)
