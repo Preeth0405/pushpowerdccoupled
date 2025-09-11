@@ -426,7 +426,8 @@ if load_file and pv_file:
         st.plotly_chart(px.bar(monthly, x="Month", y=["Load", "Production", "Export", "Excess"], barmode="group",
                                title="Monthly Solar Use & Export"), use_container_width=True)
 
-        with st.expander("📥 Download Results"):
+        # --- Download Results ---
+    with st.expander("📥 Download Results"):
         st.download_button(
             "Download CSV",
             df.to_csv(index=False),
@@ -436,7 +437,7 @@ if load_file and pv_file:
         )
 
     # --- Batch Simulation Toggle ---
-        simulate_batch = st.radio(
+    simulate_batch = st.radio(
         "Batch Simulation", ["No", "Yes"], index=0, horizontal=True
     )
     batch_inputs = []
@@ -471,7 +472,7 @@ if load_file and pv_file:
                     "Export": export
                 })
 
-        # --- Run Simulation ---
+        # --- Run Batch Simulation ---
         if load_file and pv_file:
             load_d = load_df
             pv_d = load_df
@@ -578,14 +579,12 @@ if load_file and pv_file:
             )
 
             st.subheader("📈 Comparison Chart")
-            fig = px.bar(result_df, x="System",
-                         y=["Solar Used (kWh)", "Battery Used (kWh)", "Import (kWh)", "Export (kWh)"],
-                         barmode="group")
+            fig = px.bar(
+                result_df, x="System",
+                y=["Solar Used (kWh)", "Battery Used (kWh)", "Import (kWh)", "Export (kWh)"],
+                barmode="group"
+            )
             st.plotly_chart(fig, use_container_width=True)
-
-
-
-
 
 
 else:
