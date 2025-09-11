@@ -436,7 +436,7 @@ if load_file and pv_file:
         )
 
     # --- Batch Simulation Toggle ---
-    simulate_batch = st.radio(
+        simulate_batch = st.radio(
         "Batch Simulation", ["No", "Yes"], index=0, horizontal=True
     )
     batch_inputs = []
