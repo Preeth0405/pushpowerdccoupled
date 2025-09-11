@@ -48,64 +48,82 @@ if uploaded_params:
         st.session_state[k] = v
     st.sidebar.success("Inputs loaded from file!")
 
-# --- Glossary + How-to + Diagram in Sidebar ---
+# --- Glossary + How-to + DC-Coupled Diagram ---
 with st.sidebar.expander("📖 Glossary & How-to", expanded=False):
     st.markdown("""
     ## ⚡ Key Terms
-    - **DC Size (kW):** PV array capacity (DC side).
+    - **DC Size (kW):** PV array installed capacity (DC side).
     - **Base DC Size (kW):** Scaling reference from uploaded PV file.
-    - **Inverter Capacity (kW):** Max AC output rating.
-    - **Export / Import Limits (kW):** Grid constraints.
-    - **Battery Capacity (kWh):** Energy storage per unit.
-    - **Depth of Discharge (DoD %):** Fraction usable before empty.
-    - **SOC (State of Charge %):** Current stored energy.
-    - **C-rate:** Charge/discharge rate relative to capacity (1C = full in 1h).
-    - **Battery Efficiency (%):** Round-trip efficiency.
+    - **Inverter Capacity (kW):** Max AC output power.
+    - **Export / Import Limits (kW):** Grid connection constraints.
+    - **Battery Capacity (kWh):** Usable energy storage per battery unit.
+    - **Depth of Discharge (DoD %):** Maximum usable fraction of battery energy.
+    - **SOC (State of Charge %):** Battery’s available energy at a given time.
+    - **C-rate:** Charge/discharge speed relative to battery size (1C = full in 1h).
+    - **Battery Efficiency (%):** Round-trip efficiency (charge + discharge).
 
     ## 🔄 Dispatch Logic (DC-Coupled)
-    1. PV → Load (via inverter)  
-    2. Battery discharge → Load  
-    3. Import from Grid  
-    4. PV surplus → Battery charge  
-    5. PV surplus → Export (limited by inverter & grid cap)  
-    6. Remaining → Excess (curtailed)
+    1. **PV → Load** (via DC bus + inverter).  
+    2. **Battery Discharge → Load** (if load > PV).  
+    3. **Grid Import** (if PV + battery cannot cover load).  
+    4. **PV Surplus → Battery Charge** (if SOC < max).  
+    5. **PV Surplus → Export** (limited by inverter + grid cap).  
+    6. **Excess (Curtailment)** if all limits reached.
 
-    ## 🧾 Losses
-    - **Inverter Losses:** DC→AC conversion.
-    - **Battery Losses:** Charge/discharge inefficiencies.
-    - **Clipped Energy:** PV above inverter/DC limits.
-    - **Excess:** PV beyond export capacity.
+    ## 🧾 Losses Tracked
+    - **Inverter Losses:** DC→AC conversion inefficiencies.  
+    - **Battery Losses:** Charging/discharging inefficiencies.  
+    - **Clipped Energy:** PV above inverter/DC capacity.  
+    - **Excess:** PV beyond export capacity.  
 
     ## 📊 Financial Model
-    - **Capex (£):** PV + Battery cost.
-    - **O&M Costs (%):** Annual % of capex.
-    - **Degradation (%/yr):** PV and battery aging.
-    - **Tariff Escalation:** Import/export price rise per year.
-    - **Outputs:** IRR, ROI, Payback, LCOE, Savings.
+    - **Capex (£):** PV + battery cost.  
+    - **O&M (% of Capex):** Annual maintenance cost.  
+    - **Degradation (%/yr):** PV and battery performance decline.  
+    - **Tariff Escalation:** Yearly increase in import/export rates.  
+    - **Outputs:** IRR, ROI, Payback, LCOE, Annual Savings.  
 
-    ## 📈 Outputs
-    - **Monthly Summary:** Load, PV, Battery, Import, Export.
-    - **Annual Metrics:** Renewable fraction, cycles, utilization, losses.
-    - **Charts:** Load profile, SOC, energy flows, batch results.
+    ## 📈 Outputs to Review
+    - **Monthly Summary:** Energy flows by month.  
+    - **Annual Metrics:** Renewable fraction, grid import, export %, battery cycles/utilization.  
+    - **Charts:** Load profile, SOC, charge/discharge, renewable flows.  
+    - **Batch Simulation:** Compare multiple system sizes/configs.  
+
+    ## 🔧 How to Use
+    1. **Upload Input Data**  
+       - Load Profile CSV → site consumption.  
+       - PV Output CSV → modelled or measured generation.  
+       - Both must have the same time resolution.  
+    2. **Set System Configuration**  
+       - Adjust PV DC size, inverter, export/import limits.  
+    3. **Enter Tariffs**  
+       - Import/export rates (£/kWh).  
+    4. **Financial Parameters**  
+       - Capex per kW, battery cost, O&M %, escalation rates.  
+    5. **Battery Settings**  
+       - Capacity, DoD, SOC limits, C-rate, round-trip efficiency.  
+    6. **Run Simulation**  
+       - Model calculates PV dispatch, battery behavior, imports, exports, losses.  
+    7. **Review Outputs**  
+       - Check energy flows, savings, IRR/ROI, payback, and LCOE.  
+    8. **Batch Simulation (optional)**  
+       - Run multiple configurations to compare results.  
+
+    ## 🔌 DC-Coupled Architecture (Conceptual)
+    ```
+    ☀️ PV Array ──▶ DC Bus ──▶ Inverter ──▶ AC Load / Grid
+                      │
+                      ▼
+                   🔋 Battery
+    ```
+
+    In **DC-Coupled** systems:
+    - PV and Battery are both connected to the **DC bus**.  
+    - Inverter only converts the **necessary power** to AC.  
+    - Battery charges directly from PV DC → fewer conversion losses.  
+    - Efficient for systems with **high self-consumption** and when **export is constrained**.  
     """)
 
-    # --- Add DC-Coupled Diagram (Plotly Sankey) ---
-    import plotly.graph_objects as go
-
-    labels = ["PV Array", "Battery", "DC Bus", "Inverter", "Load", "Grid Export"]
-    # Source → Target mapping
-    sources = [0, 0, 1, 2, 2, 3]   # PV→DC, PV→Battery, Batt→DC, DC→Inverter, DC→Battery, Inverter→Load
-    targets = [2, 1, 2, 3, 1, 4]   # flows
-    values  = [10, 5, 5, 12, 3, 10]  # example kWh (dummy numbers for visualization)
-
-    fig = go.Figure(go.Sankey(
-        arrangement="snap",
-        node=dict(label=labels, pad=20, thickness=20),
-        link=dict(source=sources, target=targets, value=values)
-    ))
-
-    st.plotly_chart(fig, use_container_width=True)
-    st.caption("Simplified DC-Coupled Architecture: PV and Battery share the DC bus before the inverter.")
 
 
 # --- Upload Section ---
