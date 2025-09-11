@@ -110,7 +110,7 @@ if st.sidebar.button("📥 Save Inputs"):
         "battery_capacity": battery_capacity,
         "dod": dod,
         "min_soc": min_soc,
-        "initial_soc": initial_soc,
+        "initial_soc": initial_soc*100,
         "c_rate": c_rate,
         "battery_eff": battery_eff*100
     }
