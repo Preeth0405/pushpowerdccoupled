@@ -426,12 +426,20 @@ if load_file and pv_file:
         st.plotly_chart(px.bar(monthly, x="Month", y=["Load", "Production", "Export", "Excess"], barmode="group",
                                title="Monthly Solar Use & Export"), use_container_width=True)
 
-    with st.expander("📥 Download Results"):
-        st.download_button("Download CSV", df.to_csv(index=False), "final_simulation.csv", "text/csv",key = "download_simulation_result")
+        with st.expander("📥 Download Results"):
+        st.download_button(
+            "Download CSV",
+            df.to_csv(index=False),
+            "final_simulation.csv",
+            "text/csv",
+            key="download_final_result"
+        )
 
-        simulate_batch = st.radio("Batch Simulation", ["No", "Yes"], index=0, horizontal=True)
-
-        batch_inputs = []
+    # --- Batch Simulation Toggle ---
+    simulate_batch = st.radio(
+        "Batch Simulation", ["No", "Yes"], index=0, horizontal=True
+    )
+    batch_inputs = []
 
     if simulate_batch == "Yes":
         with st.expander("📊 Batch Simulation (Compare Multiple Systems)", expanded=False):
@@ -452,122 +460,129 @@ if load_file and pv_file:
                 with col4:
                     crate = st.number_input(f"Battery C-rate - System {i + 1}", key=f"crate_{i}", value=0.5)
                     export = default_export if export_lock else st.number_input(
-                        f"Export Limit (kW) - System {i + 1}", key=f"export_{i}", value=30.0)
+                        f"Export Limit (kW) - System {i + 1}", key=f"export_{i}", value=30.0
+                    )
 
                 batch_inputs.append({
-                        "DC": dc,
-                        "AC": ac,
-                        "Batt": batt,
-                        "C-rate": crate,
-                        "Export": export
+                    "DC": dc,
+                    "AC": ac,
+                    "Batt": batt,
+                    "C-rate": crate,
+                    "Export": export
                 })
 
-            # --- Run Simulation ---
-            if load_file and pv_file:
-                load_d = load_df
-                pv_d = load_df
+        # --- Run Simulation ---
+        if load_file and pv_file:
+            load_d = load_df
+            pv_d = load_df
 
-                time_series = pd.to_datetime(load_df.iloc[:, 0], dayfirst=True)
-                load_values = load_df.iloc[:, 1]
-                pv_base = pv_df.iloc[:, 1]
-                load_sum = load_values.sum()
+            time_series = pd.to_datetime(load_df.iloc[:, 0], dayfirst=True)
+            load_values = load_df.iloc[:, 1]
+            pv_base = pv_df.iloc[:, 1]
+            load_sum = load_values.sum()
 
-                results = []
-                for i, config in enumerate(batch_inputs):
-                    scaling = config["DC"] / base_dc_size
-                    pv_scaled = pv_base * scaling
-                    usable_capacity = config["Batt"] * dod * battery_qty
-                    soc = usable_capacity * initial_soc
+            results = []
+            for i, config in enumerate(batch_inputs):
+                scaling = config["DC"] / base_dc_size
+                pv_scaled = pv_base * scaling
+                usable_capacity = config["Batt"] * dod * battery_qty
+                soc = usable_capacity * initial_soc
 
-                    discharge_total = 0
-                    solar_to_load = 0
-                    battery_to_load = 0
-                    import_total = 0
-                    export_total = 0
-                    excess_total = 0
-                    battery_loss = 0
-                    inverter_loss = 0
+                discharge_total = 0
+                solar_to_load = 0
+                battery_to_load = 0
+                import_total = 0
+                export_total = 0
+                excess_total = 0
+                battery_loss = 0
+                inverter_loss = 0
 
-                    for t in range(len(time_series)):
-                        pv = pv_scaled[t]
-                        load = load_values[t]
-                        inverter_limit = config["AC"]
-                        export_limit = config["Export"]
+                for t in range(len(time_series)):
+                    pv = pv_scaled[t]
+                    load = load_values[t]
+                    inverter_limit = config["AC"]
+                    export_limit = config["Export"]
 
-                        pv_to_load = min(pv, load)
-                        solar_to_load += pv_to_load
-                        remaining_load = max(0, load - pv_to_load)
+                    pv_to_load = min(pv, load)
+                    solar_to_load += pv_to_load
+                    remaining_load = max(0, load - pv_to_load)
 
-                        # Battery discharge
-                        max_discharge = config["Batt"] * config["C-rate"]
-                        useful_discharge = min(remaining_load, max_discharge)
-                        raw_discharge = useful_discharge / np.sqrt(battery_eff)
-                        raw_discharge = min(raw_discharge, soc)
-                        useful_discharge = raw_discharge * np.sqrt(battery_eff)
-                        battery_to_load += useful_discharge
-                        soc -= raw_discharge
-                        discharge_total += useful_discharge
-                        battery_loss += (raw_discharge - useful_discharge)
+                    # Battery discharge
+                    max_discharge = config["Batt"] * config["C-rate"]
+                    useful_discharge = min(remaining_load, max_discharge)
+                    raw_discharge = useful_discharge / np.sqrt(battery_eff)
+                    raw_discharge = min(raw_discharge, soc)
+                    useful_discharge = raw_discharge * np.sqrt(battery_eff)
+                    battery_to_load += useful_discharge
+                    soc -= raw_discharge
+                    discharge_total += useful_discharge
+                    battery_loss += (raw_discharge - useful_discharge)
 
-                        # Battery charge
-                        available_for_charge = max(0, pv - pv_to_load)
-                        max_charge = config["Batt"] * config["C-rate"]
-                        charge_raw = min(max_charge, usable_capacity - soc, available_for_charge)
-                        charge_useful = charge_raw * np.sqrt(battery_eff)
-                        soc += charge_useful
-                        battery_loss += (charge_raw - charge_useful)
+                    # Battery charge
+                    available_for_charge = max(0, pv - pv_to_load)
+                    max_charge = config["Batt"] * config["C-rate"]
+                    charge_raw = min(max_charge, usable_capacity - soc, available_for_charge)
+                    charge_useful = charge_raw * np.sqrt(battery_eff)
+                    soc += charge_useful
+                    battery_loss += (charge_raw - charge_useful)
 
-                        # Inverter output
-                        total_inverter_input = pv + useful_discharge
-                        e_inv = min(total_inverter_input, inverter_limit)
-                        e_use = e_inv * inverter_eff
-                        inverter_loss += (e_inv - e_use)
+                    # Inverter output
+                    total_inverter_input = pv + useful_discharge
+                    e_inv = min(total_inverter_input, inverter_limit)
+                    e_use = e_inv * inverter_eff
+                    inverter_loss += (e_inv - e_use)
 
-                        # Import from grid
-                        import_total += max(0, load - e_use)
+                    # Import from grid
+                    import_total += max(0, load - e_use)
 
-                        # Export and excess
-                        pv_after_load_charge = max(0, pv - pv_to_load - charge_raw)
-                        export_cap = max(0, inverter_limit - pv_to_load)
-                        export = min(pv_after_load_charge, export_limit, export_cap)
-                        export_total += export
-                        excess_total += max(0, pv_after_load_charge - export)
+                    # Export and excess
+                    pv_after_load_charge = max(0, pv - pv_to_load - charge_raw)
+                    export_cap = max(0, inverter_limit - pv_to_load)
+                    export = min(pv_after_load_charge, export_limit, export_cap)
+                    export_total += export
+                    excess_total += max(0, pv_after_load_charge - export)
 
-                    ren_fraction = (solar_to_load + battery_to_load) / load_sum * 100
-                    battery_util = (discharge_total / (usable_capacity * 365)) * 100
+                ren_fraction = (solar_to_load + battery_to_load) / load_sum * 100
+                battery_util = (discharge_total / (usable_capacity * 365)) * 100
 
-                    results.append({
-                        "System": f"System {i + 1}",
-                        "DC Size": config["DC"],
-                        "AC Size": config["AC"],
-                        "Battery Capacity": config["Batt"],
-                        "Solar Used (kWh)": solar_to_load,
-                        "Solar Used (%)": (solar_to_load / load_sum) * 100,
-                        "Battery Used (kWh)": battery_to_load,
-                        "Battery Used (%)": (battery_to_load / load_sum) * 100,
-                        "Import (kWh)": import_total,
-                        "Export (kWh)": export_total,
-                        "Excess (kWh)": excess_total,
-                        "Renewable Fraction (%)": ren_fraction,
-                        "Battery Cycles": discharge_total / usable_capacity,
-                        "Battery Utilization (%)": battery_util,
-                        "Battery Losses (kWh)": battery_loss,
-                        "Inverter Losses (kWh)": inverter_loss
-                    })
+                results.append({
+                    "System": f"System {i + 1}",
+                    "DC Size": config["DC"],
+                    "AC Size": config["AC"],
+                    "Battery Capacity": config["Batt"],
+                    "Solar Used (kWh)": solar_to_load,
+                    "Solar Used (%)": (solar_to_load / load_sum) * 100,
+                    "Battery Used (kWh)": battery_to_load,
+                    "Battery Used (%)": (battery_to_load / load_sum) * 100,
+                    "Import (kWh)": import_total,
+                    "Export (kWh)": export_total,
+                    "Excess (kWh)": excess_total,
+                    "Renewable Fraction (%)": ren_fraction,
+                    "Battery Cycles": discharge_total / usable_capacity,
+                    "Battery Utilization (%)": battery_util,
+                    "Battery Losses (kWh)": battery_loss,
+                    "Inverter Losses (kWh)": inverter_loss
+                })
 
-                result_df = pd.DataFrame(results)
+            result_df = pd.DataFrame(results)
 
-                st.subheader("📊 Batch Results Table")
-                st.dataframe(result_df)
+            st.subheader("📊 Batch Results Table")
+            st.dataframe(result_df)
 
-                st.download_button("📥 Download Batch Results as CSV", result_df.to_csv(index=False),
-                                   "batch_simulation_results.csv", "text/csv",key = "download_batch_button")
+            st.download_button(
+                "📥 Download Batch Results as CSV",
+                result_df.to_csv(index=False),
+                "batch_simulation_results.csv",
+                "text/csv",
+                key="download_batch_result"
+            )
 
-                st.subheader("📈 Comparison Chart")
-                fig = px.bar(result_df, x="System",
-                             y=["Solar Used (kWh)", "Battery Used (kWh)", "Import (kWh)", "Export (kWh)"],
-                             barmode="group")
-                st.plotly_chart(fig, use_container_width=True)
+            st.subheader("📈 Comparison Chart")
+            fig = px.bar(result_df, x="System",
+                         y=["Solar Used (kWh)", "Battery Used (kWh)", "Import (kWh)", "Export (kWh)"],
+                         barmode="group")
+            st.plotly_chart(fig, use_container_width=True)
+
 
 
 
