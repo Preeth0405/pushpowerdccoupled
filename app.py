@@ -10,7 +10,7 @@ st.set_page_config(layout="wide")
 
 with st.sidebar:
     st.image("image.png",width = 150)
-    st.header("ðŸ” Secure Login")
+    st.header("🔒 Secure Login")
 
     # Initialize session state
     if "authenticated" not in st.session_state:
@@ -23,8 +23,8 @@ with st.sidebar:
             st.session_state.authenticated = True
             st.rerun()
     else:
-        st.success("ðŸ”“ Logged in")
-        if st.button("ðŸšª Logout"):
+        st.success("➜] Logged in")
+        if st.button("⏻ Logout"):
             st.session_state.authenticated = False
             st.rerun()
 
